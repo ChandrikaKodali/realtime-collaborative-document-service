@@ -1,0 +1,783 @@
+/* =====================================================
+   GLOBAL
+===================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  background: #f6f8fa;
+  color: #24292f;
+}
+
+
+/* =====================================================
+   APP
+===================================================== */
+
+.app {
+  min-height: 100vh;
+  background: #f6f8fa;
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.header {
+  min-height: 90px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 40px;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #d0d7de;
+
+  box-shadow:
+    0 1px 3px rgba(27, 31, 36, 0.08);
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.header h1 {
+  margin: 0;
+
+  font-size: 25px;
+  font-weight: 650;
+
+  color: #24292f;
+}
+
+.header p {
+  margin: 6px 0 0;
+
+  font-size: 14px;
+
+  color: #57606a;
+}
+
+
+/* =====================================================
+   SERVER STATUS
+===================================================== */
+
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 13px;
+
+  border: 1px solid #d0d7de;
+
+  border-radius: 20px;
+
+  background: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: #57606a;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+
+  border-radius: 50%;
+
+  display: inline-block;
+}
+
+.status-dot.online {
+  background: #1a7f37;
+
+  box-shadow:
+    0 0 0 3px rgba(26, 127, 55, 0.12);
+}
+
+.status-dot.offline {
+  background: #cf222e;
+
+  box-shadow:
+    0 0 0 3px rgba(207, 34, 46, 0.10);
+}
+
+
+/* =====================================================
+   MAIN CONTAINER
+===================================================== */
+
+.main-container {
+  display: flex;
+
+  width: 100%;
+
+  min-height: calc(100vh - 90px);
+}
+
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
+.sidebar {
+  width: 310px;
+
+  flex-shrink: 0;
+
+  padding: 25px 20px;
+
+  background: #ffffff;
+
+  border-right: 1px solid #d0d7de;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 16px;
+}
+
+.sidebar h2 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 650;
+
+  color: #24292f;
+}
+
+
+/* =====================================================
+   NEW BUTTON
+===================================================== */
+
+.new-button {
+  width: 100%;
+
+  border: 1px solid #1f883d;
+
+  border-radius: 7px;
+
+  padding: 10px 14px;
+
+  background: #1f883d;
+
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.1s ease;
+}
+
+.new-button:hover {
+  background: #1a7f37;
+}
+
+.new-button:active {
+  transform: scale(0.98);
+}
+
+
+/* =====================================================
+   DOCUMENT LIST
+===================================================== */
+
+.document-list {
+  margin-top: 20px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 9px;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 12px;
+
+  border: 1px solid #d0d7de;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.document-item:hover {
+  background: #f6f8fa;
+
+  border-color: #8c959f;
+}
+
+.document-item.active {
+  background: #ddf4ff;
+
+  border-color: #54aeff;
+
+  box-shadow:
+    inset 3px 0 0 #0969da;
+}
+
+
+/* =====================================================
+   DOCUMENT DETAILS
+===================================================== */
+
+.document-details {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.document-details strong {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-size: 14px;
+
+  color: #24292f;
+}
+
+.document-details span {
+  font-size: 11px;
+
+  color: #6e7781;
+}
+
+
+/* =====================================================
+   DELETE BUTTON
+===================================================== */
+
+.delete-button {
+  flex-shrink: 0;
+
+  padding: 6px 9px;
+
+  border: 1px solid #d0d7de;
+
+  border-radius: 6px;
+
+  background: #ffffff;
+
+  color: #cf222e;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.delete-button:hover {
+  background: #ffebe9;
+
+  border-color: #ff8182;
+}
+
+
+/* =====================================================
+   MESSAGE
+===================================================== */
+
+.message {
+  margin: 20px 5px;
+
+  text-align: center;
+
+  font-size: 14px;
+
+  color: #6e7781;
+}
+
+
+/* =====================================================
+   EDITOR
+===================================================== */
+
+.editor {
+  flex: 1;
+
+  min-width: 0;
+
+  padding: 35px;
+
+  background: #f6f8fa;
+}
+
+.editor-container {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  min-height: calc(100vh - 160px);
+}
+
+
+/* =====================================================
+   TITLE INPUT
+===================================================== */
+
+.title-input {
+  width: 100%;
+
+  padding: 15px 17px;
+
+  border: 1px solid #d0d7de;
+
+  border-radius: 8px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #24292f;
+
+  font-size: 21px;
+  font-weight: 600;
+
+  margin-bottom: 15px;
+
+  box-shadow:
+    0 1px 2px rgba(27, 31, 36, 0.05);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.title-input::placeholder {
+  color: #8c959f;
+}
+
+.title-input:focus {
+  border-color: #0969da;
+
+  box-shadow:
+    0 0 0 3px rgba(9, 105, 218, 0.12);
+}
+
+
+/* =====================================================
+   CONTENT EDITOR
+===================================================== */
+
+.content-editor {
+  flex: 1;
+
+  width: 100%;
+
+  min-height: 450px;
+
+  padding: 20px;
+
+  border: 1px solid #d0d7de;
+
+  border-radius: 8px;
+
+  outline: none;
+
+  resize: vertical;
+
+  background: #ffffff;
+
+  color: #24292f;
+
+  -webkit-text-fill-color: #24292f;
+
+  caret-color: #24292f;
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  font-size: 16px;
+
+  line-height: 1.7;
+
+  box-shadow:
+    0 1px 2px rgba(27, 31, 36, 0.05);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.content-editor::placeholder {
+  color: #8c959f;
+
+  -webkit-text-fill-color: #8c959f;
+}
+
+.content-editor:focus {
+  border-color: #0969da;
+
+  box-shadow:
+    0 0 0 3px rgba(9, 105, 218, 0.12);
+}
+
+
+/* =====================================================
+   ACTIONS
+===================================================== */
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 12px;
+
+  margin-top: 15px;
+
+  min-height: 42px;
+}
+
+.save-info {
+  margin-right: auto;
+
+  display: flex;
+  align-items: center;
+}
+
+
+/* =====================================================
+   SAVE STATUS
+===================================================== */
+
+.save-status {
+  font-size: 14px;
+
+  font-weight: 600;
+
+  color: #57606a;
+
+  transition:
+    opacity 0.2s ease;
+}
+
+.save-success {
+  color: #1a7f37;
+}
+
+.save-error {
+  color: #cf222e;
+}
+
+
+/* =====================================================
+   SAVE BUTTON
+===================================================== */
+
+.save-button {
+  min-width: 125px;
+
+  padding: 10px 16px;
+
+  border: 1px solid #0969da;
+
+  border-radius: 7px;
+
+  background: #0969da;
+
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.1s ease;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #0860ca;
+}
+
+.save-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.save-button:disabled {
+  opacity: 0.65;
+
+  cursor: not-allowed;
+}
+
+
+/* =====================================================
+   WELCOME SCREEN
+===================================================== */
+
+.welcome {
+  min-height: calc(100vh - 160px);
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  padding: 30px;
+}
+
+.welcome-icon {
+  width: 70px;
+  height: 70px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 20px;
+
+  border-radius: 16px;
+
+  background: #ddf4ff;
+
+  font-size: 32px;
+}
+
+.welcome h2 {
+  margin: 0 0 10px;
+
+  font-size: 25px;
+
+  color: #24292f;
+}
+
+.welcome p {
+  max-width: 430px;
+
+  margin: 0 0 25px;
+
+  font-size: 15px;
+
+  line-height: 1.6;
+
+  color: #57606a;
+}
+
+.welcome-button {
+  width: auto;
+
+  min-width: 190px;
+}
+
+
+/* =====================================================
+   SCROLLBAR
+===================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f6f8fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #afb8c1;
+
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8c959f;
+}
+
+
+/* =====================================================
+   RESPONSIVE - TABLET
+===================================================== */
+
+@media (max-width: 900px) {
+
+  .header {
+    padding: 18px 25px;
+  }
+
+  .header h1 {
+    font-size: 21px;
+  }
+
+  .sidebar {
+    width: 260px;
+  }
+
+  .editor {
+    padding: 25px;
+  }
+
+}
+
+
+/* =====================================================
+   RESPONSIVE - MOBILE
+===================================================== */
+
+@media (max-width: 700px) {
+
+  .header {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 15px;
+
+    padding: 18px 20px;
+  }
+
+  .server-status {
+    align-self: flex-start;
+  }
+
+  .main-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+
+    border-right: none;
+
+    border-bottom: 1px solid #d0d7de;
+
+    padding: 20px;
+  }
+
+  .document-list {
+    max-height: 250px;
+
+    overflow-y: auto;
+  }
+
+  .editor {
+    padding: 20px;
+  }
+
+  .editor-container {
+    min-height: calc(100vh - 400px);
+  }
+
+  .content-editor {
+    min-height: 350px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .save-button {
+    width: 100%;
+  }
+
+  .save-info {
+    width: 100%;
+
+    justify-content: flex-start;
+  }
+
+}
+
+
+/* =====================================================
+   RESPONSIVE - SMALL MOBILE
+===================================================== */
+
+@media (max-width: 450px) {
+
+  .header h1 {
+    font-size: 19px;
+  }
+
+  .header p {
+    font-size: 13px;
+  }
+
+  .sidebar {
+    padding: 15px;
+  }
+
+  .editor {
+    padding: 15px;
+  }
+
+  .title-input {
+    font-size: 18px;
+
+    padding: 13px;
+  }
+
+  .content-editor {
+    padding: 15px;
+
+    font-size: 15px;
+  }
+
+  .document-item {
+    padding: 10px;
+  }
+
+}
