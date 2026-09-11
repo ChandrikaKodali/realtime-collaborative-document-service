@@ -1,30 +1,28 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware # type: ignore
-from pydantic import BaseModel # type: ignore
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, engine, Base
-from .models import Document, User
-from .auth import (
-    hash_password,
-    verify_password,
-    create_access_token,
-)
+from .models import Document
+
 
 # =========================================================
-# CREATE APP
+# APP
 # =========================================================
 
 app = FastAPI(
     title="Real-Time Collaborative Document Service",
-    version="1.0.0",
+    version="1.0.0"
 )
+
 
 # =========================================================
 # DATABASE
 # =========================================================
 
 Base.metadata.create_all(bind=engine)
+
 
 # =========================================================
 # CORS
@@ -41,20 +39,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # =========================================================
 # REQUEST MODELS
 # =========================================================
-
-class RegisterRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
 
 class DocumentCreate(BaseModel):
     title: str
@@ -67,149 +55,31 @@ class DocumentUpdate(BaseModel):
 
 
 # =========================================================
-# HEALTH CHECK
+# ROOT
 # =========================================================
 
 @app.get("/")
 def root():
+
     return {
         "message": "Real-Time Collaborative Document Service is running"
     }
 
 
+# =========================================================
+# HEALTH
+# =========================================================
+
 @app.get("/health")
 def health():
+
     return {
         "status": "healthy"
     }
 
 
 # =========================================================
-# AUTHENTICATION
-# =========================================================
-
-@app.post("/api/auth/register")
-def register_user(user_data: RegisterRequest):
-
-    db: Session = SessionLocal()
-
-    try:
-
-        # Check username
-        existing_username = (
-            db.query(User)
-            .filter(User.username == user_data.username)
-            .first()
-        )
-
-        if existing_username:
-            return {
-                "error": "Username already exists"
-            }
-
-        # Check email
-        existing_email = (
-            db.query(User)
-            .filter(User.email == user_data.email)
-            .first()
-        )
-
-        if existing_email:
-            return {
-                "error": "Email already exists"
-            }
-
-        # Create user
-        new_user = User(
-            username=user_data.username,
-            email=user_data.email,
-            password_hash=hash_password(user_data.password),
-        )
-
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        return {
-            "message": "Registration successful",
-            "user": {
-                "id": new_user.id,
-                "username": new_user.username,
-                "email": new_user.email,
-            },
-        }
-
-    except Exception as e:
-
-        db.rollback()
-
-        print("REGISTER ERROR:", e)
-
-        raise e
-
-    finally:
-
-        db.close()
-
-
-@app.post("/api/auth/login")
-def login_user(user_data: LoginRequest):
-
-    db: Session = SessionLocal()
-
-    try:
-
-        # Find user
-        user = (
-            db.query(User)
-            .filter(User.username == user_data.username)
-            .first()
-        )
-
-        # User not found
-        if not user:
-
-            return {
-                "error": "Invalid username or password"
-            }
-
-        # Check password
-        if not verify_password(
-            user_data.password,
-            user.password_hash,
-        ):
-
-            return {
-                "error": "Invalid username or password"
-            }
-
-        # Create JWT token
-        access_token = create_access_token(
-            {
-                "sub": str(user.id),
-                "username": user.username,
-            }
-        )
-
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "username": user.username,
-        }
-
-    except Exception as e:
-
-        print("LOGIN ERROR:", e)
-
-        raise e
-
-    finally:
-
-        db.close()
-
-
-# =========================================================
-# DOCUMENT APIs
+# GET ALL DOCUMENTS
 # =========================================================
 
 @app.get("/api/documents")
@@ -232,6 +102,10 @@ def get_documents():
         db.close()
 
 
+# =========================================================
+# GET ONE DOCUMENT
+# =========================================================
+
 @app.get("/api/documents/{document_id}")
 def get_document(document_id: int):
 
@@ -241,7 +115,9 @@ def get_document(document_id: int):
 
         document = (
             db.query(Document)
-            .filter(Document.id == document_id)
+            .filter(
+                Document.id == document_id
+            )
             .first()
         )
 
@@ -258,6 +134,10 @@ def get_document(document_id: int):
         db.close()
 
 
+# =========================================================
+# CREATE DOCUMENT
+# =========================================================
+
 @app.post("/api/documents")
 def create_document(
     document_data: DocumentCreate
@@ -269,7 +149,7 @@ def create_document(
 
         new_document = Document(
             title=document_data.title,
-            content=document_data.content,
+            content=document_data.content
         )
 
         db.add(new_document)
@@ -282,7 +162,10 @@ def create_document(
 
         db.rollback()
 
-        print("CREATE DOCUMENT ERROR:", e)
+        print(
+            "CREATE DOCUMENT ERROR:",
+            e
+        )
 
         raise e
 
@@ -291,10 +174,14 @@ def create_document(
         db.close()
 
 
+# =========================================================
+# UPDATE DOCUMENT
+# =========================================================
+
 @app.put("/api/documents/{document_id}")
 def update_document(
     document_id: int,
-    document_data: DocumentUpdate,
+    document_data: DocumentUpdate
 ):
 
     db: Session = SessionLocal()
@@ -303,7 +190,9 @@ def update_document(
 
         document = (
             db.query(Document)
-            .filter(Document.id == document_id)
+            .filter(
+                Document.id == document_id
+            )
             .first()
         )
 
@@ -325,7 +214,10 @@ def update_document(
 
         db.rollback()
 
-        print("UPDATE DOCUMENT ERROR:", e)
+        print(
+            "UPDATE DOCUMENT ERROR:",
+            e
+        )
 
         raise e
 
@@ -334,16 +226,24 @@ def update_document(
         db.close()
 
 
-@app.delete("/api/documents/{document_id}")
-def delete_document(document_id: int):
+# =========================================================
+# DELETE DOCUMENT
+# =========================================================
 
-    db = SessionLocal()
+@app.delete("/api/documents/{document_id}")
+def delete_document(
+    document_id: int
+):
+
+    db: Session = SessionLocal()
 
     try:
 
         document = (
             db.query(Document)
-            .filter(Document.id == document_id)
+            .filter(
+                Document.id == document_id
+            )
             .first()
         )
 
@@ -357,14 +257,18 @@ def delete_document(document_id: int):
         db.commit()
 
         return {
-            "message": "Document deleted successfully"
+            "message":
+                "Document deleted successfully"
         }
 
     except Exception as e:
 
         db.rollback()
 
-        print("DELETE DOCUMENT ERROR:", e)
+        print(
+            "DELETE DOCUMENT ERROR:",
+            e
+        )
 
         raise e
 
@@ -374,46 +278,46 @@ def delete_document(document_id: int):
 
 
 # =========================================================
-# WEBSOCKET CONNECTION MANAGER
+# WEBSOCKET MANAGER
 # =========================================================
 
 class ConnectionManager:
 
     def __init__(self):
 
-        self.active_connections: dict[
-            int,
-            list[WebSocket]
-        ] = {}
+        self.active_connections = {}
+
 
     async def connect(
         self,
         websocket: WebSocket,
-        document_id: int,
+        document_id: int
     ):
 
         await websocket.accept()
 
         if document_id not in self.active_connections:
 
-            self.active_connections[document_id] = []
+            self.active_connections[
+                document_id
+            ] = []
 
-        self.active_connections[document_id].append(
-            websocket
-        )
+        self.active_connections[
+            document_id
+        ].append(websocket)
+
 
     def disconnect(
         self,
         websocket: WebSocket,
-        document_id: int,
+        document_id: int
     ):
 
         if document_id in self.active_connections:
 
-            if (
-                websocket
-                in self.active_connections[document_id]
-            ):
+            if websocket in self.active_connections[
+                document_id
+            ]:
 
                 self.active_connections[
                     document_id
@@ -427,11 +331,12 @@ class ConnectionManager:
                     document_id
                 ]
 
+
     async def broadcast(
         self,
         message: str,
         document_id: int,
-        sender: WebSocket,
+        sender: WebSocket
     ):
 
         if document_id not in self.active_connections:
@@ -462,15 +367,17 @@ manager = ConnectionManager()
 # WEBSOCKET
 # =========================================================
 
-@app.websocket("/ws/documents/{document_id}")
+@app.websocket(
+    "/ws/documents/{document_id}"
+)
 async def websocket_endpoint(
     websocket: WebSocket,
-    document_id: int,
+    document_id: int
 ):
 
     await manager.connect(
         websocket,
-        document_id,
+        document_id
     )
 
     try:
@@ -482,21 +389,24 @@ async def websocket_endpoint(
             await manager.broadcast(
                 message,
                 document_id,
-                websocket,
+                websocket
             )
 
     except WebSocketDisconnect:
 
         manager.disconnect(
             websocket,
-            document_id,
+            document_id
         )
 
     except Exception as e:
 
-        print("WEBSOCKET ERROR:", e)
+        print(
+            "WEBSOCKET ERROR:",
+            e
+        )
 
         manager.disconnect(
             websocket,
-            document_id,
+            document_id
         )
