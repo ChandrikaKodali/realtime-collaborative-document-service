@@ -1,27 +1,38 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from .database import SessionLocal, engine, Base
-from .models import Document
-
-
-# =========================================================
-# APP
-# =========================================================
-
-app = FastAPI(
-    title="Real-Time Collaborative Document Service",
-    version="1.0.0"
+from .database import Base, engine, get_db
+from .models import User, Document
+from .auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    verify_token,
 )
 
 
 # =========================================================
-# DATABASE
+# CREATE DATABASE TABLES
 # =========================================================
 
 Base.metadata.create_all(bind=engine)
+
+
+# =========================================================
+# FASTAPI APPLICATION
+# =========================================================
+
+app = FastAPI(
+    title="Real-Time Collaborative Document Service",
+    description="A real-time collaborative document editing service",
+    version="1.0.0",
+)
 
 
 # =========================================================
@@ -30,10 +41,7 @@ Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://collabdocs-frontend-i4q4.onrender.com",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,8 +49,26 @@ app.add_middleware(
 
 
 # =========================================================
+# SECURITY
+# =========================================================
+
+security = HTTPBearer(auto_error=False)
+
+
+# =========================================================
 # REQUEST MODELS
 # =========================================================
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 
 class DocumentCreate(BaseModel):
     title: str
@@ -50,31 +76,169 @@ class DocumentCreate(BaseModel):
 
 
 class DocumentUpdate(BaseModel):
-    title: str
-    content: str
+    title: Optional[str] = None
+    content: Optional[str] = None
 
 
 # =========================================================
-# ROOT
+# HELPER - GET CURRENT USER
+# =========================================================
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+        )
+
+    token = credentials.credentials
+
+    payload = verify_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+        )
+
+    user_id = payload.get("user_id")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token",
+        )
+
+    user = db.query(User).filter(
+        User.id == int(user_id)
+    ).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found",
+        )
+
+    return user
+
+
+# =========================================================
+# ROOT / HEALTH
 # =========================================================
 
 @app.get("/")
 def root():
-
     return {
-        "message": "Real-Time Collaborative Document Service is running"
+        "message": "Real-Time Collaborative Document Service is running",
+        "status": "healthy",
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "database": "connected",
     }
 
 
 # =========================================================
-# HEALTH
+# AUTHENTICATION - REGISTER
 # =========================================================
 
-@app.get("/health")
-def health():
+@app.post("/api/auth/register")
+def register(
+    request: RegisterRequest,
+    db: Session = Depends(get_db),
+):
+    # Check username
+    existing_username = db.query(User).filter(
+        User.username == request.username
+    ).first()
+
+    if existing_username:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists",
+        )
+
+    # Check email
+    existing_email = db.query(User).filter(
+        User.email == request.email
+    ).first()
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered",
+        )
+
+    # Create user
+    new_user = User(
+        username=request.username,
+        email=request.email,
+        password_hash=hash_password(request.password),
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
     return {
-        "status": "healthy"
+        "message": "Registration successful",
+        "user": {
+            "id": new_user.id,
+            "username": new_user.username,
+            "email": new_user.email,
+        },
+    }
+
+
+# =========================================================
+# AUTHENTICATION - LOGIN
+# =========================================================
+
+@app.post("/api/auth/login")
+def login(
+    request: LoginRequest,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(
+        User.email == request.email
+    ).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+        )
+
+    if not verify_password(
+        request.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+        )
+
+    access_token = create_access_token(
+        {
+            "user_id": user.id,
+            "username": user.username,
+            "email": user.email,
+        }
+    )
+
+    return {
+        "message": "Login successful",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user.username,
+        "user_id": user.id,
     }
 
 
@@ -83,55 +247,70 @@ def health():
 # =========================================================
 
 @app.get("/api/documents")
-def get_documents():
-
-    db: Session = SessionLocal()
-
-    try:
-
-        documents = (
-            db.query(Document)
-            .order_by(Document.id.desc())
-            .all()
+def get_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    documents = (
+        db.query(Document)
+        .filter(
+            (Document.owner_id == current_user.id)
+            | (Document.owner_id.is_(None))
         )
+        .order_by(Document.updated_at.desc())
+        .all()
+    )
 
-        return documents
-
-    finally:
-
-        db.close()
+    return [
+        {
+            "id": document.id,
+            "title": document.title,
+            "content": document.content or "",
+            "owner_id": document.owner_id,
+            "created_at": document.created_at,
+            "updated_at": document.updated_at,
+        }
+        for document in documents
+    ]
 
 
 # =========================================================
-# GET ONE DOCUMENT
+# GET SINGLE DOCUMENT
 # =========================================================
 
 @app.get("/api/documents/{document_id}")
-def get_document(document_id: int):
+def get_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = db.query(Document).filter(
+        Document.id == document_id
+    ).first()
 
-    db: Session = SessionLocal()
-
-    try:
-
-        document = (
-            db.query(Document)
-            .filter(
-                Document.id == document_id
-            )
-            .first()
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
         )
 
-        if not document:
+    if (
+        document.owner_id is not None
+        and document.owner_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have access to this document",
+        )
 
-            return {
-                "error": "Document not found"
-            }
-
-        return document
-
-    finally:
-
-        db.close()
+    return {
+        "id": document.id,
+        "title": document.title,
+        "content": document.content or "",
+        "owner_id": document.owner_id,
+        "created_at": document.created_at,
+        "updated_at": document.updated_at,
+    }
 
 
 # =========================================================
@@ -140,38 +319,28 @@ def get_document(document_id: int):
 
 @app.post("/api/documents")
 def create_document(
-    document_data: DocumentCreate
+    request: DocumentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    document = Document(
+        title=request.title,
+        content=request.content,
+        owner_id=current_user.id,
+    )
 
-    db: Session = SessionLocal()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
 
-    try:
-
-        new_document = Document(
-            title=document_data.title,
-            content=document_data.content
-        )
-
-        db.add(new_document)
-        db.commit()
-        db.refresh(new_document)
-
-        return new_document
-
-    except Exception as e:
-
-        db.rollback()
-
-        print(
-            "CREATE DOCUMENT ERROR:",
-            e
-        )
-
-        raise e
-
-    finally:
-
-        db.close()
+    return {
+        "id": document.id,
+        "title": document.title,
+        "content": document.content or "",
+        "owner_id": document.owner_id,
+        "created_at": document.created_at,
+        "updated_at": document.updated_at,
+    }
 
 
 # =========================================================
@@ -181,49 +350,48 @@ def create_document(
 @app.put("/api/documents/{document_id}")
 def update_document(
     document_id: int,
-    document_data: DocumentUpdate
+    request: DocumentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    document = db.query(Document).filter(
+        Document.id == document_id
+    ).first()
 
-    db: Session = SessionLocal()
-
-    try:
-
-        document = (
-            db.query(Document)
-            .filter(
-                Document.id == document_id
-            )
-            .first()
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
         )
 
-        if not document:
-
-            return {
-                "error": "Document not found"
-            }
-
-        document.title = document_data.title
-        document.content = document_data.content
-
-        db.commit()
-        db.refresh(document)
-
-        return document
-
-    except Exception as e:
-
-        db.rollback()
-
-        print(
-            "UPDATE DOCUMENT ERROR:",
-            e
+    if (
+        document.owner_id is not None
+        and document.owner_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to edit this document",
         )
 
-        raise e
+    if request.title is not None:
+        document.title = request.title
 
-    finally:
+    if request.content is not None:
+        document.content = request.content
 
-        db.close()
+    document.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(document)
+
+    return {
+        "id": document.id,
+        "title": document.title,
+        "content": document.content or "",
+        "owner_id": document.owner_id,
+        "created_at": document.created_at,
+        "updated_at": document.updated_at,
+    }
 
 
 # =========================================================
@@ -232,115 +400,84 @@ def update_document(
 
 @app.delete("/api/documents/{document_id}")
 def delete_document(
-    document_id: int
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    document = db.query(Document).filter(
+        Document.id == document_id
+    ).first()
 
-    db: Session = SessionLocal()
-
-    try:
-
-        document = (
-            db.query(Document)
-            .filter(
-                Document.id == document_id
-            )
-            .first()
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
         )
 
-        if not document:
-
-            return {
-                "error": "Document not found"
-            }
-
-        db.delete(document)
-        db.commit()
-
-        return {
-            "message":
-                "Document deleted successfully"
-        }
-
-    except Exception as e:
-
-        db.rollback()
-
-        print(
-            "DELETE DOCUMENT ERROR:",
-            e
+    if (
+        document.owner_id is not None
+        and document.owner_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this document",
         )
 
-        raise e
+    db.delete(document)
+    db.commit()
 
-    finally:
-
-        db.close()
+    return {
+        "message": "Document deleted successfully"
+    }
 
 
 # =========================================================
-# WEBSOCKET MANAGER
+# WEBSOCKET CONNECTION MANAGER
 # =========================================================
 
 class ConnectionManager:
 
     def __init__(self):
-
         self.active_connections = {}
-
 
     async def connect(
         self,
         websocket: WebSocket,
-        document_id: int
+        document_id: int,
     ):
-
         await websocket.accept()
 
         if document_id not in self.active_connections:
+            self.active_connections[document_id] = []
 
-            self.active_connections[
-                document_id
-            ] = []
-
-        self.active_connections[
-            document_id
-        ].append(websocket)
-
+        self.active_connections[document_id].append(
+            websocket
+        )
 
     def disconnect(
         self,
         websocket: WebSocket,
-        document_id: int
+        document_id: int,
     ):
-
         if document_id in self.active_connections:
 
-            if websocket in self.active_connections[
-                document_id
-            ]:
+            if websocket in self.active_connections[document_id]:
+                self.active_connections[document_id].remove(
+                    websocket
+                )
 
-                self.active_connections[
-                    document_id
-                ].remove(websocket)
-
-            if not self.active_connections[
-                document_id
-            ]:
-
+            if not self.active_connections[document_id]:
                 del self.active_connections[
                     document_id
                 ]
-
 
     async def broadcast(
         self,
         message: str,
         document_id: int,
-        sender: WebSocket
+        sender: WebSocket,
     ):
-
         if document_id not in self.active_connections:
-
             return
 
         for connection in self.active_connections[
@@ -350,13 +487,11 @@ class ConnectionManager:
             if connection != sender:
 
                 try:
-
                     await connection.send_text(
                         message
                     )
 
                 except Exception:
-
                     pass
 
 
@@ -364,20 +499,17 @@ manager = ConnectionManager()
 
 
 # =========================================================
-# WEBSOCKET
+# WEBSOCKET - REAL-TIME COLLABORATION
 # =========================================================
 
-@app.websocket(
-    "/ws/documents/{document_id}"
-)
+@app.websocket("/ws/documents/{document_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    document_id: int
+    document_id: int,
 ):
-
     await manager.connect(
         websocket,
-        document_id
+        document_id,
     )
 
     try:
@@ -389,24 +521,19 @@ async def websocket_endpoint(
             await manager.broadcast(
                 message,
                 document_id,
-                websocket
+                websocket,
             )
 
     except WebSocketDisconnect:
 
         manager.disconnect(
             websocket,
-            document_id
+            document_id,
         )
 
-    except Exception as e:
-
-        print(
-            "WEBSOCKET ERROR:",
-            e
-        )
+    except Exception:
 
         manager.disconnect(
             websocket,
-            document_id
+            document_id,
         )
